@@ -68,6 +68,28 @@ def run_test(case, store):
     return True
 
 
+def run_remote_cmd():
+    # Subprocess run ssh -c
+    # ssh redhat@localhost -p 10022
+    pass
+
+
+def qemu_start(image):
+    # qemu sth...
+    # qemu-system-x86_64 -m 2048 -snapshot -accel accel=tcg,thread=multi -net nic,model=rtl8139 -net user,hostfwd=tcp::10022-:22 image.qcow2
+    pass
+
+def boot_image(format):
+    # This will call osbuild-pipeline once we have customizations working
+    # I start with custom made pipelines
+    with osbuild_test_store() as store:
+        with open(glob.glob(f"{TEST_DIR}/boot_test_pipelines/{format}.json")) as f:
+            case = json.load(f)
+
+        run_osbuild(case["pipeline"], store)
+        qemu_start(case["compose"]["filename"])
+
+
 def main(args):
     failed = False
     with osbuild_test_store() as store:
