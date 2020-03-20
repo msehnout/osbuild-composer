@@ -18,11 +18,13 @@ import (
 	"github.com/osbuild/osbuild-composer/internal/blueprint"
 	"github.com/osbuild/osbuild-composer/internal/distro"
 	"github.com/osbuild/osbuild-composer/internal/store"
+
+	"go.uber.org/zap"
 )
 
 // API encapsulates RCM-specific API that is exposed over a separate TCP socket
 type API struct {
-	logger *log.Logger
+	logger *zap.SugaredLogger
 	store  *store.Store
 	router *httprouter.Router
 	// rpmMetadata is an interface to dnf-json and we include it here so that we can
@@ -32,9 +34,12 @@ type API struct {
 }
 
 // New creates new RCM API
-func New(logger *log.Logger, store *store.Store, rpmMetadata rpmmd.RPMMD, distros *distro.Registry) *API {
+func New(_logger *log.Logger, store *store.Store, rpmMetadata rpmmd.RPMMD, distros *distro.Registry) *API {
+	logger := zap.NewExample() // or NewProduction, or NewDevelopment
+	defer logger.Sync()
+	sugar := logger.Sugar()
 	api := &API{
-		logger:      logger,
+		logger:      sugar,
 		store:       store,
 		router:      httprouter.New(),
 		rpmMetadata: rpmMetadata,
@@ -66,9 +71,8 @@ func (api *API) Serve(listener net.Listener) error {
 
 // ServeHTTP logs the request, sets content-type, and forwards the request to appropriate handler
 func (api *API) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	if api.logger != nil {
-		log.Println(request.Method, request.URL.Path)
-	}
+	defer api.logger.Sync()
+	api.logger.Info("RCM API: HTTP ", request.Method, " ", request.URL.Path, " ", request.Body)
 
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	api.router.ServeHTTP(writer, request)
@@ -109,6 +113,7 @@ func depsolve(rpmmd rpmmd.RPMMD, distro distro.Distro, repos []rpmmd.RepoConfig,
 }
 
 func (api *API) submit(writer http.ResponseWriter, request *http.Request, _ httprouter.Params) {
+	defer api.logger.Sync()
 	// Check some basic HTTP parameters
 	contentType := request.Header["Content-Type"]
 	if len(contentType) != 1 || contentType[0] != "application/json" {
@@ -160,6 +165,7 @@ func (api *API) submit(writer http.ResponseWriter, request *http.Request, _ http
 			// JSON encoding is clearly our fault.
 			panic("Failed to encode errors in RCM API. This is a bug.")
 		}
+		api.logger.Info("RCM API: bad submit request ", request.Body)
 		return
 	}
 
@@ -181,6 +187,8 @@ func (api *API) submit(writer http.ResponseWriter, request *http.Request, _ http
 		if err != nil {
 			panic("Failed to write response")
 		}
+		api.logger.Info("RCM API: bad distro in submit request ", request.Body)
+		return
 	}
 
 	arch, ok := composeRequest.Architectures[0].ToString()
@@ -195,11 +203,13 @@ func (api *API) submit(writer http.ResponseWriter, request *http.Request, _ http
 
 	packages, buildPackages, err := depsolve(api.rpmMetadata, distro, repoConfigs, imageType, arch)
 	if err != nil {
+		api.logger.Info("RCM API: could not depsolve: ", err)
 		writer.WriteHeader(http.StatusBadRequest)
 		_, err := writer.Write([]byte(err.Error()))
 		if err != nil {
 			panic("Failed to write response")
 		}
+		return
 	}
 
 	// Push the requested compose to the store
@@ -207,13 +217,11 @@ func (api *API) submit(writer http.ResponseWriter, request *http.Request, _ http
 	// nil is used as an upload target, because LocalTarget is already used in the PushCompose function
 	err = api.store.PushCompose(distro, composeUUID, &blueprint.Blueprint{}, repoConfigs, packages, buildPackages, arch, imageType, 0, nil)
 	if err != nil {
-		if api.logger != nil {
-			api.logger.Println("RCM API failed to push compose:", err)
-		}
 		writer.WriteHeader(http.StatusBadRequest)
 		errorReason.Error = "failed to push compose: " + err.Error()
 		// TODO: handle error
 		_ = json.NewEncoder(writer).Encode(errorReason)
+		api.logger.Error("RCM API failed to push compose: ", err)
 		return
 	}
 
@@ -239,6 +247,7 @@ func (api *API) status(writer http.ResponseWriter, request *http.Request, params
 		errorReason.Error = "Malformed UUID"
 		// TODO: handle error
 		_ = json.NewEncoder(writer).Encode(errorReason)
+		api.logger.Info("RCM API: bad UUID in status request ", request.Body)
 		return
 	}
 
@@ -249,6 +258,7 @@ func (api *API) status(writer http.ResponseWriter, request *http.Request, params
 		errorReason.Error = "Compose UUID does not exist"
 		// TODO: handle error
 		_ = json.NewEncoder(writer).Encode(errorReason)
+		api.logger.Info("RCM API: non-existing UUID in status request ", request.Body)
 		return
 	}
 

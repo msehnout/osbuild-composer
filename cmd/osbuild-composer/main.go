@@ -18,6 +18,7 @@ import (
 	"github.com/osbuild/osbuild-composer/internal/weldr"
 
 	"github.com/coreos/go-systemd/activation"
+
 )
 
 type connectionConfig struct {
@@ -100,9 +101,7 @@ func main() {
 	}
 
 	var logger *log.Logger
-	if verbose {
-		logger = log.New(os.Stdout, "", 0)
-	}
+	logger = log.New(os.Stdout, "", 0)
 
 	store := store.New(&stateDir)
 
