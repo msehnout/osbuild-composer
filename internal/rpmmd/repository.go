@@ -103,7 +103,7 @@ type RPMMD interface {
 	// Depsolve takes a list of required content (specs), explicitly unwanted content (excludeSpecs), list
 	// or repositories, and platform ID for modularity. It returns a list of all packages (with solved
 	// dependencies) that will be installed into the system.
-	Depsolve(specs, excludeSpecs []string, repos []RepoConfig, modulePlatformID string) ([]PackageSpec, map[string]string, error)
+	Depsolve(specs, excludeSpecs []string, repos []RepoConfig, modulePlatformID, arch string) ([]PackageSpec, map[string]string, error)
 }
 
 type DNFError struct {
@@ -238,14 +238,15 @@ func (r *rpmmdImpl) FetchMetadata(repos []RepoConfig, modulePlatformID string) (
 	return reply.Packages, reply.Checksums, err
 }
 
-func (r *rpmmdImpl) Depsolve(specs, excludeSpecs []string, repos []RepoConfig, modulePlatformID string) ([]PackageSpec, map[string]string, error) {
+func (r *rpmmdImpl) Depsolve(specs, excludeSpecs []string, repos []RepoConfig, modulePlatformID, arch string) ([]PackageSpec, map[string]string, error) {
 	var arguments = struct {
 		PackageSpecs     []string     `json:"package-specs"`
 		ExcludSpecs      []string     `json:"exclude-specs"`
 		Repos            []RepoConfig `json:"repos"`
 		CacheDir         string       `json:"cachedir"`
 		ModulePlatformID string       `json:"module_platform_id"`
-	}{specs, excludeSpecs, repos, r.CacheDir, modulePlatformID}
+		Arch             string       `json:"arch"`
+	}{specs, excludeSpecs, repos, r.CacheDir, modulePlatformID, arch}
 	var reply struct {
 		Checksums    map[string]string `json:"checksums"`
 		Dependencies []PackageSpec     `json:"dependencies"`
@@ -306,7 +307,7 @@ func (packages PackageList) ToPackageInfos() []PackageInfo {
 	return results
 }
 
-func (pkg *PackageInfo) FillDependencies(rpmmd RPMMD, repos []RepoConfig, modulePlatformID string) (err error) {
-	pkg.Dependencies, _, err = rpmmd.Depsolve([]string{pkg.Name}, nil, repos, modulePlatformID)
+func (pkg *PackageInfo) FillDependencies(rpmmd RPMMD, repos []RepoConfig, modulePlatformID string, arch string) (err error) {
+	pkg.Dependencies, _, err = rpmmd.Depsolve([]string{pkg.Name}, nil, repos, modulePlatformID, arch)
 	return
 }

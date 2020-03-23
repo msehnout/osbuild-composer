@@ -94,7 +94,7 @@ func depsolve(rpmmd rpmmd.RPMMD, distro distro.Distro, repos []rpmmd.RepoConfig,
 		return nil, nil, fmt.Errorf("Distro.BasePackages: %v", err)
 	}
 
-	packages, _, err := rpmmd.Depsolve(specs, excludeSpecs, repos, distro.ModulePlatformID())
+	packages, _, err := rpmmd.Depsolve(specs, excludeSpecs, repos, distro.ModulePlatformID(), arch)
 	if err != nil {
 		return nil, nil, fmt.Errorf("RPMMD.Depsolve: %v", err)
 	}
@@ -104,7 +104,7 @@ func depsolve(rpmmd rpmmd.RPMMD, distro distro.Distro, repos []rpmmd.RepoConfig,
 		return nil, nil, fmt.Errorf("Distro.BuildPackages: %v", err)
 	}
 
-	buildPackages, _, err := rpmmd.Depsolve(specs, nil, repos, distro.ModulePlatformID())
+	buildPackages, _, err := rpmmd.Depsolve(specs, nil, repos, distro.ModulePlatformID(), arch)
 	if err != nil {
 		return nil, nil, fmt.Errorf("RPMMD.Depsolve: %v", err)
 	}
