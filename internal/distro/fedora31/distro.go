@@ -442,8 +442,24 @@ func New() *Fedora31 {
 		openstackImgType,
 		tarImgType,
 	)
+	ppc64le := arch{
+		distro: &r,
+		name:   "ppc64le",
+		bootloaderPackages: []string{
+			"dracut-config-generic",
+			"powerpc-utils",
+			"grub2-ppc64le",
+		},
+		uefi: false,
+	}
+	ppc64le.setImageTypes(
+		ext4FilesystemType,
+		partitionedDisk,
+		qcow2ImageType,
+		tarImgType,
+	)
 
-	r.setArches(x8664, aarch64)
+	r.setArches(x8664, aarch64, ppc64le)
 
 	return &r
 }
