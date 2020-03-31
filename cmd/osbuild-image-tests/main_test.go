@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -38,7 +39,7 @@ type testcaseStruct struct {
 }
 
 // runOsbuild runs osbuild with the specified manifest and store.
-func runOsbuild(manifest []byte, store string) (string, error) {
+func runOsbuild(manifest []byte, store string, reportDir, reportFileName string) (string, error) {
 	cmd := getOsbuildCommand(store)
 
 	cmd.Stderr = os.Stderr
@@ -50,6 +51,15 @@ func runOsbuild(manifest []byte, store string) (string, error) {
 
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
+			fd, err := os.Create(path.Join(reportDir, reportFileName))
+			if err != nil {
+				panic(err)
+			}
+			defer fd.Close()
+			_, err = fd.Write(outBuffer.Bytes())
+			if err != nil {
+				panic(err)
+			}
 			return "", fmt.Errorf("running osbuild failed: %s", outBuffer.String())
 		}
 		return "", fmt.Errorf("running osbuild failed from an unexpected reason: %#v", err)
@@ -242,7 +252,7 @@ func testImage(t *testing.T, testcase testcaseStruct, imagePath, outputID string
 
 // runTestcase builds the pipeline specified in the testcase and then it
 // tests the result
-func runTestcase(t *testing.T, testcase testcaseStruct) {
+func runTestcase(t *testing.T, testcase testcaseStruct, reportDir, reportFileName string) {
 	store, err := ioutil.TempDir("/var/tmp", "osbuild-image-tests-")
 	require.Nilf(t, err, "cannot create temporary store: %#v", err)
 
@@ -253,7 +263,7 @@ func runTestcase(t *testing.T, testcase testcaseStruct) {
 		}
 	}()
 
-	outputID, err := runOsbuild(testcase.Manifest, store)
+	outputID, err := runOsbuild(testcase.Manifest, store, reportDir, reportFileName)
 	require.Nil(t, err)
 
 	imagePath := fmt.Sprintf("%s/refs/%s/%s", store, outputID, testcase.ComposeRequest.Filename)
@@ -294,21 +304,27 @@ func getAllCases() ([]string, error) {
 
 // runTests opens, parses and runs all the specified testcases
 func runTests(t *testing.T, cases []string) {
-	for _, path := range cases {
-		t.Run(path, func(t *testing.T) {
-			f, err := os.Open(path)
-			require.Nilf(t, err, "%s: cannot open test case: %#v", path, err)
+	timeStruct := time.Now()
+	timeString := timeStruct.Format("2006-01-02-15-04-05")
+	reportDir := "/tmp/osbuild-image-tests-" + timeString
+	err := os.MkdirAll(reportDir, 0777)
+	require.Nilf(t, err, "cannot create report directory %s: %#v", reportDir, err)
+	for _, pathStr := range cases {
+		t.Run(pathStr, func(t *testing.T) {
+			f, err := os.Open(pathStr)
+			require.Nilf(t, err, "%s: cannot open test case: %#v", pathStr, err)
 
 			var testcase testcaseStruct
 			err = json.NewDecoder(f).Decode(&testcase)
-			require.Nilf(t, err, "%s: cannot decode test case: %#v", path, err)
+			require.Nilf(t, err, "%s: cannot decode test case: %#v", pathStr, err)
 
 			currentArch := common.CurrentArch()
 			if testcase.ComposeRequest.Arch != currentArch {
 				t.Skipf("the required arch is %s, the current arch is %s", testcase.ComposeRequest.Arch, currentArch)
 			}
 
-			runTestcase(t, testcase)
+			_, reportFileName := path.Split(pathStr)
+			runTestcase(t, testcase, reportDir, reportFileName)
 		})
 
 	}
