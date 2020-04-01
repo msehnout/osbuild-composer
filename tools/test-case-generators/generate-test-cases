@@ -15,7 +15,11 @@ def main(distro, arch, store, output):
         test_case_request["compose-request"]["distro"] = distro
         test_case_request["compose-request"]["arch"] = arch
         test_case_request["compose-request"]["repositories"] = repos_dict[distro][arch]
-        test_case = json.loads(subprocess.check_output(["tools/test-case-generators/generate-test-case", store], input=json.dumps(test_case_request), encoding="utf-8"))
+        sp = subprocess.run(["tools/test-case-generators/generate-test-case", store], input=json.dumps(test_case_request), encoding="utf-8", stdout=subprocess.PIPE)
+        if sp.returncode != 0:
+            print("Error running generate-test-case: ", sp.stdout)
+            sys.exit(1)
+        test_case = json.loads(sp.stdout)
         name = distro.replace("-", "_") + "-" + arch + "-" + output_format.replace("-", "_") + "-boot.json"
         file_name = output + "/" + name
         with open(file_name, 'w') as case_file:

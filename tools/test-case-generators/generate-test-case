@@ -28,7 +28,11 @@ It then outputs a json test case as standard output.
 
 def run_osbuild(manifest, store):
     osbuild_cmd = ["osbuild", "--store", store, "--json", "-"]
-    result = json.loads(subprocess.check_output(osbuild_cmd, encoding="utf-8", input=json.dumps(manifest)))
+    sp = subprocess.run(osbuild_cmd, input=json.dumps(manifest), encoding="utf-8", stdout=subprocess.PIPE)
+    if sp.returncode != 0:
+        print("Error running osbuild: ", sp.stdout)
+        sys.exit(1)
+    result = json.loads(sp.stdout)
     return result.get("output_id")
 
 
@@ -37,10 +41,18 @@ def main(test_case, store):
     compose_request = json.dumps(test_case["compose-request"])
 
     pipeline_command = ["go", "run", "./cmd/osbuild-pipeline", "-"]
-    test_case["manifest"] = json.loads(subprocess.check_output(pipeline_command, input=compose_request, encoding="utf-8"))
+    sp = subprocess.run(pipeline_command, input=compose_request, encoding="utf-8", stdout=subprocess.PIPE)
+    if sp.returncode != 0:
+        print("Error running osbuild pipeline: ", sp.stdout)
+        sys.exit(1)
+    test_case["manifest"] = json.loads(sp.stdout)
 
     pipeline_command = ["go", "run", "./cmd/osbuild-pipeline", "-rpmmd", "-"]
-    test_case["rpmmd"] = json.loads(subprocess.check_output(pipeline_command, input=compose_request, encoding="utf-8"))
+    sp = subprocess.run(pipeline_command, input=compose_request, encoding="utf-8", stdout=subprocess.PIPE)
+    if sp.returncode != 0:
+        print("Error running osbuild pipeline -rpmmd: ", sp.stdout)
+        sys.exit(1)
+    test_case["rpmmd"] = json.loads(sp.stdout)
 
     if boot_type != "nspawn-extract":
         output_id = run_osbuild(test_case["manifest"], store)
