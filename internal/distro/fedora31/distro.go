@@ -43,6 +43,7 @@ type arch struct {
 	name               string
 	bootloaderPackages []string
 	buildPackages      []string
+	legacy             string
 	uefi               bool
 	imageTypes         map[string]imageType
 }
@@ -353,6 +354,7 @@ func New() *Fedora31 {
 		buildPackages: []string{
 			"grub2-pc",
 		},
+		legacy: "i386-pc",
 	}
 	x8664.setImageTypes(
 		amiImgType,
@@ -608,10 +610,15 @@ func (r *imageType) grub2StageOptions(kernelOptions string, kernel *blueprint.Ke
 		}
 	}
 
+	var legacy string
+	if !uefi {
+		legacy = r.arch.legacy
+	}
+
 	return &osbuild.GRUB2StageOptions{
 		RootFilesystemUUID: id,
 		KernelOptions:      kernelOptions,
-		Legacy:             !uefi,
+		Legacy:             legacy,
 		UEFI:               uefiOptions,
 	}
 }
