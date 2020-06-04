@@ -100,9 +100,22 @@ func TestImageType_BuildPackages(t *testing.T) {
 		"tar",
 		"xz",
 	}
+	ppc64leBuildPackages := []string{
+		"dnf",
+		"dosfstools",
+		"e2fsprogs",
+		"policycoreutils",
+		"qemu-img",
+		"systemd",
+		"tar",
+		"xz",
+		"grub2-ppc64le",
+		"grub2-ppc64le-modules",
+	}
 	buildPackages := map[string][]string{
 		"x86_64":  x8664BuildPackages,
 		"aarch64": aarch64BuildPackages,
+		"ppc64le": ppc64leBuildPackages,
 	}
 	d := fedora32.New()
 	for _, archLabel := range d.ListArches() {
@@ -291,7 +304,7 @@ func TestDistro_Manifest(t *testing.T) {
 func TestFedora32_ListArches(t *testing.T) {
 	distro := fedora32.New()
 	arches := distro.ListArches()
-	assert.Equal(t, []string{"aarch64", "x86_64"}, arches)
+	assert.Equal(t, []string{"aarch64", "ppc64le", "x86_64"}, arches)
 }
 
 func TestFedora32_GetArch(t *testing.T) {
