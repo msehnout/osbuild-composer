@@ -515,28 +515,51 @@ func qemuAssembler(format string, filename string, uefi bool, imageOptions distr
 			},
 		}
 	} else {
-		options = osbuild.QEMUAssemblerOptions{
-			Format:   format,
-			Filename: filename,
-			Size:     imageOptions.Size,
-			PTUUID:   "0x14fc63d2",
-			PTType:   "mbr",
-			Partitions: []osbuild.QEMUPartition{
-				{
-					Start:    2048,
-					Bootable: true,
-					Filesystem: osbuild.QEMUFilesystem{
-						Type:       "xfs",
-						UUID:       "0bd700f8-090f-4556-b797-b340297ea1bd",
-						Mountpoint: "/",
+		if arch.Name() == "ppc64le" {
+			options = osbuild.QEMUAssemblerOptions{
+				Bootloader: &osbuild.QEMUBootloader{
+					Type:     "grub2",
+					Platform: "powerpc-ieee1275",
+				},
+				Format:   format,
+				Filename: filename,
+				Size:     imageOptions.Size,
+				PTUUID:   "0x14fc63d2",
+				PTType:   "dos",
+				Partitions: []osbuild.QEMUPartition{
+					{
+						Size:     8192,
+						Type:     "41",
+						Bootable: true,
+					},
+					{
+						Start: 10240,
+						Filesystem: osbuild.QEMUFilesystem{
+							Type:       "xfs",
+							UUID:       "0bd700f8-090f-4556-b797-b340297ea1bd",
+							Mountpoint: "/",
+						},
 					},
 				},
-			},
-		}
-		if arch.Name() == "ppc64le" {
-			options.Bootloader = &osbuild.QEMUBootloader{
-				Type:     "grub2",
-				Platform: "powerpc-ieee1275",
+			}
+		} else {
+			options = osbuild.QEMUAssemblerOptions{
+				Format:   format,
+				Filename: filename,
+				Size:     imageOptions.Size,
+				PTUUID:   "0x14fc63d2",
+				PTType:   "mbr",
+				Partitions: []osbuild.QEMUPartition{
+					{
+						Start:    2048,
+						Bootable: true,
+						Filesystem: osbuild.QEMUFilesystem{
+							Type:       "xfs",
+							UUID:       "0bd700f8-090f-4556-b797-b340297ea1bd",
+							Mountpoint: "/",
+						},
+					},
+				},
 			}
 		}
 	}
