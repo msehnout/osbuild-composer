@@ -23,7 +23,11 @@ def main(distro, arch, store, output):
         test_case_request["compose-request"]["distro"] = distro
         test_case_request["compose-request"]["arch"] = arch
         test_case_request["compose-request"]["repositories"] = repos_dict[distro][arch]
-        test_case = json.loads(get_subprocess_stdout(["tools/test-case-generators/generate-test-case", store], input=json.dumps(test_case_request), encoding="utf-8"))
+        aaa = get_subprocess_stdout(["tools/test-case-generators/generate-test-case", store], input=json.dumps(test_case_request), encoding="utf-8")
+        with open('/tmp/aaa', 'w') as f:
+            f.write(aaa)
+
+        test_case = json.loads(aaa)
         name = distro.replace("-", "_") + "-" + arch + "-" + output_format.replace("-", "_") + "-boot.json"
         file_name = output + "/" + name
         with open(file_name, 'w') as case_file:
