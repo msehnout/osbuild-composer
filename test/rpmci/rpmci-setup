@@ -1,0 +1,26 @@
+#!/bin/bash
+set -xeuo pipefail
+
+# This script is executed before the integration tests.
+# The problem with running tests in a separate "test" VM
+# is that Weldr API uses Unix domain socket instead of a
+# publicly accessible TCP socket. That's why we need to
+# forward it over SSH and bypass unix permissions while
+# doing so.
+
+# Prepare remote Weldr socket by allowing the SSH user
+# to read/write from/to it.
+ssh targetvm "sudo systemctl start osbuild-composer"
+ssh targetvm "sudo chmod go+rw /run/weldr/api.socket"
+# Now create a local directory for the forwarded socket.
+sudo mkdir /run/weldr
+sudo chmod go+rwx /run/weldr
+# Finally forward the socket.
+# -f = go to background
+# -N = do not execute a remote command, only forward the port
+# -L = forward the port
+# nohup and std{in,err,out} redirections are needed so that the script can actually exit.
+# Without these customizations the whole script would simply hang indefinitely.
+nohup ssh -fN -L /run/weldr/api.socket:/run/weldr/api.socket targetvm > /tmp/ssh-stdout.log 2> /tmp/ssh-stderr.log < /dev/null &
+# Make sure it works
+sudo composer-cli status show
