@@ -335,6 +335,7 @@ Requires:   virt-install
 Requires:   expect
 Requires:   python3-lxml
 Requires:   httpd
+Requires:   mod_ssl
 Requires:   openssl
 Requires:   podman-plugins
 Requires:   dnf-plugins-core
